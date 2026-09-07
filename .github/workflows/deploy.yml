@@ -1,39 +1,81 @@
-name: Deploy to GitHub Pages
+name: CI/CD Pipeline - Deploy Website to AWS S3
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
+
+  test:
+    name: Test Website
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Checkout
+
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      - name: Check HTML File
+        run: |
+          test -f index.html
+          echo "HTML file exists"
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Check CSS File
+        run: |
+          test -f style.css
+          echo "CSS file exists"
+
+      - name: Check JavaScript File
+        run: |
+          test -f script.js
+          echo "JavaScript file exists"
+
+
+  build:
+    name: Build Website
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create Build Folder
+        run: |
+          mkdir -p build
+          cp index.html build/
+          cp style.css build/
+          cp script.js build/
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: .
+          name: website-build
+          path: build/
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+
+  deploy:
+    name: Deploy to AWS S3
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: website-build
+          path: build/
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy Website to S3
+        run: |
+          aws s3 sync build/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
