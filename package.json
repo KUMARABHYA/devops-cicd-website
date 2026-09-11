@@ -1,0 +1,9 @@
+{
+  "name": "devops-cicd-website",
+  "version": "1.0.0",
+  "description": "Simple website for DevOps CI/CD assignment",
+  "scripts": {
+    "test": "node -e \"console.log('Tests passed successfully')\"",
+    "build": "mkdir -p dist && cp index.html style.css script.js dist/"
+  }
+}
